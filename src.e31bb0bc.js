@@ -234,6 +234,11 @@ function init() {
         name: 'uScale',
         type: '1f',
         value: 2.0
+      },
+      borderColor: {
+        name: 'uBorderColor',
+        type: '4f',
+        value: [0.14, 0.62, 0.8, 1.0]
       }
     }
   };
@@ -292,7 +297,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "50284" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "65201" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

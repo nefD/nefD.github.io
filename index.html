@@ -32,6 +32,8 @@
   precision mediump float;
   #endif
 
+  #define PI 3.14159265358979323846
+
   // get our varyings
   varying vec3 vVertexPosition;
   varying vec2 vTextureCoord;
@@ -42,6 +44,7 @@
   uniform sampler2D uSampler0;
   uniform vec2 uResolution;
   uniform float uScale;
+  uniform vec4 uBorderColor;
 
   #define MAGIC 43758.5453123
 
@@ -84,52 +87,67 @@
     ) * .5 + .5;
   }
 
+  vec2 rotate2D(vec2 _st, float _angle){
+    _st -= 0.5;
+    _st =  mat2(cos(_angle),-sin(_angle),
+    sin(_angle),cos(_angle)) * _st;
+    _st += 0.5;
+    return _st;
+  }
+
   void main() {
     vec2 textureCoord = vTextureCoord;
+    float tx = textureCoord.x;
+    float ty = textureCoord.y;
     float breakY = 0.5;
+    float yp = ty / breakY;
     float breakLeft = 0.1;
     float breakRight = 0.9;
     vec2 st = gl_FragCoord.xy/uResolution;
     st.y -= (uTime / (75.0 * uTimeScale));
-    st.x += cos(textureCoord.x * 15.) * sin(textureCoord.y * 23.) * cos(uTime / (20. * uTimeScale)) / 10.;
-    st.y += cos(textureCoord.x * 20.) * sin(textureCoord.y * 19.) * cos(uTime / (31. * uTimeScale)) / 10.;
+    st.x += cos(tx * 15.) * sin(ty * 23.) * cos(uTime / (20. * uTimeScale)) / 10.;
     float z = noise(scale(st, uScale));
+    float threshold = 0.5 * yp;
 
-    float threshold = 0.5 * (textureCoord.y / breakY);
-
-    if (textureCoord.x <= breakLeft && textureCoord.y < breakY) {
-      threshold -= (1.0 - textureCoord.x / breakLeft) * (1.0 - (textureCoord.y / breakY)); //(threshold * 0.5);
-    } else if (textureCoord.x >= breakRight && textureCoord.y < breakY) {
-      threshold -= ((textureCoord.x - breakRight) / (1.0 - breakRight)) * (1.0 - (textureCoord.y / breakY));
+    if (tx <= breakLeft && ty < breakY) {
+      threshold -= (1.0 - tx / breakLeft) * (1.0 - yp);
+    } else if (tx >= breakRight && ty < breakY) {
+      threshold -= ((tx - breakRight) / (1.0 - breakRight)) * (1.0 - yp);
     }
 
     if (z < 0.5) {
-      z = z * (1.0 - textureCoord.y);
+      z = z * (1.0 - ty);
     } else {
-      z = z * (1.0 + textureCoord.y);
+      z = z * (1.0 + ty);
     }
 
     if (z <= threshold || z >= (1.0 - threshold)) {
-      float newY = (breakY * 0.5) + ((breakY * 0.5) * (textureCoord.y / breakY));
-      if (textureCoord.y < breakY) {
-        textureCoord.y = newY;
+      float newY = (breakY * 0.5) + ((breakY * 0.5) * yp);
+      if (ty < breakY) {
+        ty = newY;
       }
 
       float refraction = 1.1;
-      float xMod = ((abs(z - 0.5) * refraction) + (textureCoord.x - 0.5)) * (1.0 - textureCoord.y * 1.5);
-      textureCoord.x += (xMod * max(0., 1.0 - (textureCoord.y * 2.))); // * (5. * sin(textureCoord.x * 15.) * cos(uTime / 89.));
+      float rMod = max(0., 1.0 - (ty * 2.));
+      float xMod = ((abs(z - 0.5) * refraction) + (tx - 0.5)) * (1.0 - ty * 1.5);
+      tx += (xMod * rMod);
 
-      float yMod = ((abs(z - 0.5) * refraction) + (textureCoord.y - 0.5)) * (1.0 - textureCoord.y * 1.5);
-      textureCoord.y += (yMod * max(0., 1.0 - (textureCoord.y * 2.))); // * (5. * (sin(textureCoord.y * 20.) * cos(textureCoord.x * 18.) * sin(uTime / 95.) / 2.));
+      float yMod = ((abs(z - 0.5) * refraction) + (ty - 0.5)) * (1.0 - ty * 1.5);
+      ty += (yMod * rMod);
 
-      gl_FragColor = texture2D(uSampler0, textureCoord);
+      float borderThreshold = min(1., 0.8 + max(0., (ty - 0.5)));
 
-      float borderThreshold = min(1., 0.8 + max(0., (textureCoord.y - 0.5)));
-
-      if (borderThreshold > 0.) {
-        if ((z <= threshold && z > (threshold * borderThreshold)) || (z >= (1.0 - threshold)) && z < (1.0 - (threshold * borderThreshold))) {
-          gl_FragColor = vec4(1., 1., 1., 1.);
+      if (borderThreshold > 0. && ((z <= threshold && z > (threshold * borderThreshold)) || (z >= (1.0 - threshold)) && z < (1.0 - (threshold * borderThreshold)))) {
+          gl_FragColor = uBorderColor;
+      } else {
+        float distance = 1.;
+        if (z <= threshold) {
+          distance = 1.;
+        } else {
+          distance = (z - (1.0 - threshold)) / threshold;
         }
+        distance = min(1., distance * (yp * 1.));
+        gl_FragColor = mix(uBorderColor, texture2D(uSampler0, vec2(tx, ty)), distance);
       }
     } else {
       gl_FragColor = vec4(vec3(0.), 1.);

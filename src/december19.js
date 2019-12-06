@@ -39,6 +39,11 @@ export default function init() {
         type: '1f',
         value: 2.0,
       },
+      borderColor: {
+        name: 'uBorderColor',
+        type: '4f',
+        value: [0.14, 0.62, 0.8, 1.0],
+      },
     },
   };
 
